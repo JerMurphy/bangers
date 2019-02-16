@@ -105,10 +105,9 @@ app.get('/login_redirect', function(req,res){
       obj.access_token = access_token;
       obj.refresh_token = refresh_token;
       obj.name = resp.display_name;
-      //obj.picture = resp.images[0].url.split('//')[1];
+      obj.picture = resp.images[0].url;
       send_obj = JSON.stringify(obj);
-      console.log(send_obj);
-      res.redirect('http://localhost:8080/#/join?user_data='+ send_obj);
+      res.redirect('http://localhost:8080/#/join?user_data='+ encodeURIComponent(send_obj));
     }).catch(function(err){
       console.log(err)
       res.send(err);
@@ -117,6 +116,41 @@ app.get('/login_redirect', function(req,res){
     console.log('Something went wrong when retrieving the access token!', err.message);
   });
 });
+
+app.get('/search_songs', function(req,res){
+  var search_term = req.query.song;
+  if(req.query.artist){
+    search_term = search_term + ' ' + req.query.artist
+  }
+  var options = {
+    method: 'GET',
+    uri: 'https://api.spotify.com/v1/search',
+    headers: {
+      "Authorization": 'Bearer ' + req.query.ua
+    },
+    qs: {
+      type: 'track',
+      q: search_term,
+      limit: 5
+    }
+  };
+  rp(options).then(function(resp){
+   resp = JSON.parse(resp);
+    var suggestions = [];
+    _.forEach(resp.tracks.items, function(item){
+        suggestions.push({
+          'song': item.name,
+          'id': item.id,
+          'picture': item.album.images[0].url,
+          'artist': item.artists[0].name
+        })
+    })
+    res.send(suggestions);
+  }).catch(function(err){
+    console.log(err);
+    res.status(400).send("failure");
+  })
+})
 
 
 //routes
