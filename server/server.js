@@ -21,40 +21,19 @@ var spotifyApi = new SpotifyWebApi({
   redirectUri : config.spotify.redirectUri
 });
 
-var fresh_list = [
-    {
-      id: 1,
-      song: 'La Macarena',
-      artist: 'Los Del Rio',
-      count: 18
-    },
-    {
-      id: 2,
-      song: 'Never gonna give you up',
-      artist: 'Rick Astley',
-      count: 16
-    },
-    {
-      id: 3,
-      song: 'Who let the dogs out',
-      artist: 'Baha Men',
-      count: 12
-    },
-    {
-      id: 4,
-      song: 'Back in Black',
-      artist: 'AC/DC',
-      count: 8
-    }
-  ];
+var playlists = {}; //for now, one day I will make this into a DB but this is for quick testing
 
 //playlist socket integration
 io.on('connection', function (socket) {
-  console.log('socket connected to room:', socket.handshake.query.room)
-  socket.join(socket.handshake.query.room);
-  io.in(socket.handshake.query.room).emit('fresh_list', fresh_list)
+  //initial socket connection
+  if(playlists[socket.handshake.query.room]){
+    console.log('socket connected to room:', socket.handshake.query.room)
+    socket.join(socket.handshake.query.room);
+    io.in(socket.handshake.query.room).emit('fresh_list', playlists[socket.handshake.query.room].playlist)
+  }
+  //socket functions
   socket.on('new_song', function (data) {
-      fresh_list.push(data); // for now im pushing to a variable, will add a room specific db later 
+      playlists[data.code].playlist.push(data); // for now im pushing to a variable, will add a room specific db later 
       io.in(socket.handshake.query.room).emit('new_song', data)
   });
   socket.on('plus_minus', function (data) {
@@ -142,7 +121,8 @@ app.get('/search_songs', function(req,res){
           'song': item.name,
           'id': item.id,
           'picture': item.album.images[0].url,
-          'artist': item.artists[0].name
+          'artist': item.artists[0].name,
+          'count': 5 // for votes later on
         })
     })
     res.send(suggestions);
@@ -152,6 +132,29 @@ app.get('/search_songs', function(req,res){
   })
 })
 
+
+app.post('/create_party', function(req,res){
+  var code = makeid();
+  var party = {
+    code: code,//will generate user friendly code
+    name: req.body.name,
+    created_by: req.body.creator_id,
+    created_on: Date.now(),
+    playlist: []
+  }
+  playlists[code] = party;
+  res.send(code);//code to redirect user to playlist
+});
+
+function makeid() {
+  var text = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+  for (var i = 0; i < 5; i++)
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+  return text;
+}
 
 //routes
 
