@@ -58,7 +58,7 @@ io.on('connection', function (socket) {
 
 app.get('/login', function(req, res) {
   console.log('login hit')
-  var scopes = ['user-read-private', 'user-read-email'];
+  var scopes = ['user-read-private', 'user-read-email', 'user-read-playback-state', 'user-modify-playback-state'];
   var authorizeURL = spotifyApi.createAuthorizeURL(scopes, null, true);
   res.send(authorizeURL);
 });
@@ -121,6 +121,7 @@ app.get('/search_songs', function(req,res){
         suggestions.push({
           'song': item.name,
           'id': item.id,
+          'uri': item.uri,
           'picture': item.album.images[0].url,
           'artist': item.artists[0].name,
           'count': 5 // for votes later on
@@ -144,8 +145,67 @@ app.post('/create_party', function(req,res){
     playlist: []
   }
   playlists[code] = party;
-  console.log(playlists[code]);
   res.send(code);//code to redirect user to playlist
+});
+
+app.get('/get_active_devices', function(req,res){
+  var options = {
+    method: 'GET',
+    uri: 'https://api.spotify.com/v1/me/player/devices',
+    headers: {
+      "Authorization": 'Bearer ' + req.query.ua
+    }
+  };
+  rp(options).then(function(resp){
+    var devices = JSON.parse(resp).devices;
+    res.send(devices);
+  }).catch(function(err){
+    console.log(err);
+    res.status(400).send("failure");
+  })
+});
+
+app.post('/play_song', function(req,res){
+  var options = {
+    method: 'PUT',
+    uri: 'https://api.spotify.com/v1/me/player/play',
+    headers: {
+      "Authorization": 'Bearer ' + req.body.ua
+    },
+    qs: {
+      "device_id": req.body.device_id
+    },
+    body:{
+      "uris": [req.body.uri]
+    },
+    json: true
+  };
+  rp(options).then(function(resp){
+    console.log(resp);
+    res.sendStatus(200)
+  }).catch(function(err){
+    console.log(err);
+    res.status(400).send("failure");
+  })
+});
+
+app.post('/pause_song', function(req,res){
+  var options = {
+    method: 'PUT',
+    uri: 'https://api.spotify.com/v1/me/player/pause',
+    headers: {
+      "Authorization": 'Bearer ' + req.body.ua
+    },
+    qs: {
+      "device_id": req.body.device_id
+    }
+  };
+  rp(options).then(function(resp){
+    res.sendStatus(200)
+  }).catch(function(err){
+    console.log(err);
+    res.status(400).send("failure");
+  })
 });
 
 function makeid() {
