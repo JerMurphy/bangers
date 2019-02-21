@@ -29,7 +29,7 @@ io.on('connection', function (socket) {
   if(playlists[socket.handshake.query.room]){
     console.log('socket connected to room:', socket.handshake.query.room)
     socket.join(socket.handshake.query.room);
-    io.in(socket.handshake.query.room).emit('fresh_list', playlists[socket.handshake.query.room].playlist)
+    io.in(socket.handshake.query.room).emit('fresh_list', playlists[socket.handshake.query.room])
   }
   //socket functions
   socket.on('new_song', function (data) {
@@ -37,22 +37,22 @@ io.on('connection', function (socket) {
       io.in(socket.handshake.query.room).emit('new_song', data)
   });
   socket.on('plus_minus', function (data) {
-      if(data.dir == 'up'){
-          fresh_list[data.index].count++;
-      }else{
-          fresh_list[data.index].count--;
-      }
-      if(fresh_list[data.index].count <= 0){
-          fresh_list.splice(data.index,1)
-      }
-      fresh_list = _.orderBy(fresh_list, ['count'],['desc']); 
-      // for now im pushing to a variable, will add a room specific db later 
-        io.in(socket.handshake.query.room).emit('plus_minus', fresh_list)
+    if(data.dir == 'up'){
+      playlists[data.code].playlist[data.index].count++;
+    }else{
+      playlists[data.code].playlist[data.index].count--;
+    }
+    if(playlists[data.code].playlist[data.index].count <= 0){
+      playlists[data.code].playlist.splice(data.index,1)
+    }
+    playlists[data.code].playlist = _.orderBy(playlists[data.code].playlist, ['count'],['desc']); 
+    // for now im pushing to a variable, will add a room specific db later 
+    io.in(socket.handshake.query.room).emit('plus_minus', playlists[data.code].playlist)
   });
   socket.on('delete_song', function (data) {
-      fresh_list.splice(data,1)
-        // for now im pushing to a variable, will add a room specific db later 
-        io.in(socket.handshake.query.room).emit('delete_song', data)
+    playlists[data.code].playlist.splice(data,1)
+    // for now im pushing to a variable, will add a room specific db later 
+    io.in(socket.handshake.query.room).emit('delete_song', data)
   });
 });
 
@@ -84,6 +84,7 @@ app.get('/login_redirect', function(req,res){
       obj.access_token = access_token;
       obj.refresh_token = refresh_token;
       obj.name = resp.display_name;
+      obj.uid = resp.id;
       obj.picture = resp.images[0].url;
       send_obj = JSON.stringify(obj);
       res.redirect('http://localhost:8080/#/join?user_data='+ encodeURIComponent(send_obj));
@@ -143,6 +144,7 @@ app.post('/create_party', function(req,res){
     playlist: []
   }
   playlists[code] = party;
+  console.log(playlists[code]);
   res.send(code);//code to redirect user to playlist
 });
 
